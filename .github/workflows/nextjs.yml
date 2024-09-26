@@ -80,6 +80,8 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./out
+      - name: Rename folder
+        run: mv .next _next
 
   # Deployment job
   deploy:
