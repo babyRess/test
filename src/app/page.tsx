@@ -1,95 +1,100 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client'; // Add this line at the top to mark this as a client component
+
+import axios from 'axios';
+import { useState, useEffect } from 'react';
 
 export default function Home() {
-  return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>src/app/page.tsx</code>.
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [gameUrl, setGameUrl] = useState('');
 
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+  useEffect(() => {
+    const getToken = async () => {
+      const url = 'https://api.g1388.makethatold.com/lotee';
+      const params = {
+        brand: 'demo',
+        currency: 'BDT',
+        display_name: 'demo11',
+        env: 'uat',
+        locale: 'en',
+        username: 'demo11',
+      };
+
+      try {
+        const response = await axios.get(url, { params });
+        const token = parseToken(response.data);
+        if (token) {
+          await createSession(token);
+        }
+      } catch (error) {
+        console.error('Error fetching token:', error);
+      }
+    };
+
+    const parseToken = (htmlContent: string) => {
+      const tokenRegex = /lotee\.init\("([^"]+)"/;
+      const match = htmlContent.match(tokenRegex);
+      return match ? match[1] : '';
+    };
+
+    const createSession = async (sessionToken: string) => {
+      const url = 'https://api.g1388.makethatold.com/api/lotee/sessions';
+      const data = { token: sessionToken };
+
+      try {
+        const response = await axios.post(url, data, {
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: '*/*',
+            // Add other headers if necessary
+          },
+        });
+        await getLotee(response.data.player.token);
+      } catch (error) {
+        console.error('Error creating session:', error);
+      }
+    };
+
+    const getLotee = async (token: string) => {
+      const url = 'https://api.g1388.makethatold.com/lotee/lobby';
+      const params = {
+        token,
+        gameIdentifier: 'fortune_wheel',
+        brand: 'demo',
+        brandStyling: 'demo',
+      };
+
+      try {
+        const response = await axios.get(url, { params });
+        const urlGame = await extractGameUrl(response.data);
+        const tokenPattern = /token=([^&]+)/;
+        const tokenDemo = urlGame.match(tokenPattern);
+
+        if (tokenDemo && tokenDemo[1]) {
+          const constructedUrl = `https://staging-acegames.tongitroyals.com/ace/1727247640704/build/web-mobile-001/index.html?gameIdentifier=fortune_wheel&currency=demo_voucher_bdt&version=1727247640704&api_endpoint=https://api.g1388.makethatold.com/api&socket_endpoint=https://api.g1388.makethatold.com&brand=demo&brandStyling=demo&token=${tokenDemo[1]}&inGameCSS=%23splash+%7B%0A++background%3A+%23191b18+url%28https%3A%2F%2Fstaging-acegames.tongitroyals.com%2Fuploads%2Flocale_assets%2Fdemo_voucher_bdt%2Fsplash_screen%2Fen%2F2aabcf024a56ca500b816a48d9c07585.png%29+no-repeat+center+%21important%3B%0A%7D`;
+          setGameUrl(constructedUrl);
+        }
+      } catch (error) {
+        console.error('Error fetching lobby data:', error);
+      }
+    };
+
+    const extractGameUrl = (htmlContent: string) => {
+      const srcRegex = /<iframe[^>]+src=['"]([^'"]+)['"]/;
+      const match = htmlContent.match(srcRegex);
+      return match ? match[1] : '';
+    };
+
+    getToken();
+  }, []);
+
+  useEffect(() => {
+    if (gameUrl) {
+      window.location.href = gameUrl; // Redirect to the game URL
+    }
+  }, [gameUrl]);
+
+  return (
+    <div>
+      <h1>Loading...</h1>
     </div>
   );
 }
